@@ -1,0 +1,17 @@
+# $Id$
+#
+# 44.1_48 - RATECONV-FRONTEND 44.1 to 48kHz
+#
+# slow but audio-freak-quality
+#
+# Implemented resampling ratio is 147/160 (exact)
+# linear destortion 0-20kHz is between +0...-1dB
+# S/N and mirror frequency suppression better than 96dB
+#
+# overall gain is set to 0.8 (-2dB) to be safe on overload distortion
+# if you are sure you have more than 2dB headroom on the input signal
+# you can modify 0.8 to 1.0 (0dB)
+#
+exec rateconv $* 44100 20467 476 174 160 147 0.8
+# 
+# Mum/951125

@@ -65,8 +65,8 @@ class XMPlayer : public FormatPlayer
 		virtual VOID PlayRow(VOID);
 		virtual LPMODULE ReadModule(std::istream &Input);
 		virtual BOOL InitPlay(VOID);
-		virtual VOID SetVolume(LONG Volume);
-		virtual LONG GetVolume(VOID);
+		virtual VOID SetVolume(UCHAR Volume);
+		virtual UCHAR GetVolume(VOID);
 		virtual BOOL CheckFrequencies(VOID);
 
 		XMPlayer(ModuleTimer *Timer, DirectSoundInterface *DXInterface) : FormatPlayer(Timer, DXInterface) { }

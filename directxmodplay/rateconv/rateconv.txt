@@ -1,0 +1,491 @@
+
+    Parameter design for RATECONV
+    =============================
+
+    Copyright (c) 1992, 1995 by Markus Mummert
+
+
+    Contents
+    --------
+
+    	1. Formulas
+    	2. Quick design strategies
+    	3. Introduction to flexible paramter design
+    	4. Design trade-offs
+    	5. Design process step-by-step
+    	6. Examples
+    	7. Comments to experts
+ 	8. References
+
+      	(Implementation notes see source rateconv.c)
+
+
+    1. Formulas
+    -----------
+
+    	(1)	out(n/fsout) = SUM in(m/fsin)*g((n*d/u-m)*fsin)/fsin
+    			    over all m
+
+    	(2)	g(t) = 2*fgK*sinc(pi*2*fgK*t) * exp(-pi*(2*fgG*t)**2)
+    	(3)	fsout = fsin * u / d
+    	(4)	fSTB = min{fsin,fsout} / 2
+    	(5a)	aPAB = -20*log10(0.5*(1-erf(sqrt(pi)*xPAB/2)))dB
+    	(5b)	aSTB = -20*log10(0.5*(1-erf(sqrt(pi)*xSTB/2)))dB
+    	(6)	fgG = (fSTB - fPAB) / (xSTB - xPAB)
+    	(7)	fgK = fPAB - fgG * xPAB
+    	(8)	SN = 20*log10(y)
+    	(9)	Ty = sqrt(log(y)/pi) / fgG
+    	(10)	L = [fsin * Ty] + 1
+
+    	in(t)	input function sampled at t = m/fsin
+    	out(t)	output function sampled at t = n/fsout
+    	g(t)	interpolation function
+    	fgG	key frequency of gaussian time window in g(t)
+    	fgK	cutoff frequency of sinc-filter in g(t)
+    	fsin	input sample rate (frequency)
+    	fsout	output sample rate (frequency)
+    	u	integer upsampling factor
+    	d	integer downsampling factor
+    	fPAB	upper edge frequency of passband
+    	aPAB	maximum loss in passband
+    	xPAB	fPAB-fgK frequency distance normalized to fgG
+    	fSTB	lower edge frequency of stopband
+    	aSTB	minimum loss in stopband
+    	xPAB	fSTB-fgK frequency distance normalized to fgG
+    	y	number of significant sample quantize steps
+    	SN	signal-to-noise ratio in dB correponding to y
+    	Ty	time width of g(t) with respect to y
+    	L	length of FIR-filter realization
+    	pi	3.14156..
+    	[]	integer operator
+    	min{}	minimum operator
+    	**2	to the power of 2
+    	erf()	gaussian error function as defined by UN*X erf(3M)
+    	log()	natural log
+    	log10()	decadic log
+
+
+    2. Quick design strategies
+    --------------------------
+
+    I	To design a rate conversion that is - no matter what the
+    	execution speed penalty might be - on the safe side
+    	even for audio-freaks, we assume SN=96dB, aSTB=96dB
+    	aPAB=1dB at fPAB=fSTB*9/10. (The following design has
+        already been implemented in the frontend `rcv')
+
+    	Find a pair of integer values u <= 1024, d in (3)
+    	to match the originally desired fsout with a deviation
+    	of 0.1percent at maximum.
+
+    	if (u/d >= 1) {	/* upsampling */
+    		fgG = fsin/2 * (1 - 9/10) / 4.311
+    		    = fsin * 0.0116
+    		fgK = fsin/2 * 9/10 + fgG * 0.981
+    		    = fsin * 0.461
+    		L   = [1.877 * fsin / fgG] + 1
+    		    = 162
+    	} else {	/* downsampling */
+    		fgG = u/d * fsin * (1 - 9/10) / 4.311
+    		    = u/d * fsin * 0.0116
+    		fgK = u/d * fsin/2 * 9/10 + fgG * 0.981
+    		    = u/d * fsin * 0.461
+    		L   = [162 * d/u]
+    	}
+
+    	Ok, you now you've got:  fsin, fgK, fgG, L, u, d
+    	That's all you need to make RATECONV happy.
+
+    II	To fully exploit your CPU-speed for on-the-fly conversion
+    	to/from a AD/DA-device, select a device rate close above
+	the rate you want to convert from/to. Then determine the
+    	maximum L for a given fsin, d and u, by using fantasy
+    	values for fgK, fgG. If this Lmax for continuous stream
+    	processing is bigger than L of strategy I, continue
+    	there. Else prescribe an SN, maybe 72dB or 64dB, and
+    	use (8,9,10) or TABLE_B below to find fgG. Now only fgK
+    	is left to be specified. You could find fgK by trial and
+    	error, a good heuristic is to have fgK = fSTB - 2.5*fgG
+    	or even 2.15 instead of 2.5. First you could check with a
+    	speech signal for sanity, or what ever material you
+    	commonly work with. If you're happy with the result - fine.
+    	If you're not sure, see 5.h) below. If you really want to 
+    	know what you are doing, read on.
+
+
+    3. Introduction to flexible paramter design
+    -------------------------------------------
+
+    _	RATECONV uses an interpolation function g(t) to reconstruct
+    	the bandlimited input function represented by its samples. 
+    	This reconstruction will only be evaluated at time
+    	instances corresponding to the new sampling rate (1). The
+    	new rate can take on ratios of the old rate, that defined 
+    	by integer values for nominator and denominator in (3).
+
+    -	The ideal interpolation function is the sinc-function,
+    	which has an infinite length in time domain and cannot
+    	be realized in a practical system. Therefore, in (2) it is 
+    	windowed by gaussian-function to rapidly push the skirts
+    	of g(t) below a certain level fast enough, where it can be
+    	chopped off safely. At this point, the level of the gaussian
+	window below is treated as the minimum realizable signal-to-noise
+    	ratio (S/N) in the output signal which is a safe heuristic.
+	Thus a prescription for a tolerated signal-to-noise ratio
+	relates to certain a lenght of g(t) (8-10).
+
+    -	To specify the parameters of the original g(t) in (2) a
+    	frequency domain approach is taken. The task of interpolation
+    	in the time domain corresponds to lowpass filtering in the
+    	frequency domain. The desired function g(t) now happens to be
+    	the impulse response (IR) of this lowpass. A suitable lowpass
+    	should should suppress unwanted mirror frequencies as muchs
+    	as possible that are found above the minimum-half of the
+    	input and output sampling frequencies (4). This is because
+    	of the sampling theorem, see refs. [1] and [3] at the end.
+    	The presence of mirror frequencies in the baseband below
+    	is called aliasing. It can't be avoided to some extent.
+    	On the other hand, the lowpass should affect baseband
+    	frequencies as little as possible. This leads to a set of
+    	stop- and passband- prescriptions in frequency domain of
+    	g(t) (3-7).
+
+    -	If the output sampling rate is lower than input sampling
+    	rate, even an ideal interpolating lowpass has to cut some
+    	baseband frequencies used by an input signal. If the output
+    	sampling rate is higher, a portion of higher frequencies
+    	remains unused. This is inevitable.
+
+
+    4. Design trade-offs
+    --------------------
+
+    -	In frequency domain, the sinc-function in (2) corresponds
+    	to an ideal lowpass with cutoff frequency fgK. The sharp
+    	cutoff is smoothed by a gaussian-window with key
+    	frequency fgG, corresponding to the gaussian-window in the
+    	time domain. This involves an inevitable but controllable
+    	amount of aliasing. It is adressed as mirror frequency
+    	suppression. Because of the good properties of the gaussian
+    	window it will increase rapidly starting from an amount
+    	of aSTB at fSTB down to lower frequencies of the baseband.
+    	Keeping it low already at fSTB competes with the extent
+    	of g(t) in time.
+
+    -	The smoothing of the cutoff of the ideal lowpass also
+    	means loosing some bandwith in the baseband. The upper
+    	corner of the baseband is defined by the loss aSTB at
+    	a frequency fPSB, fPSB < fSTB. Shifting it towards fSTB
+    	by insisting on a low aSTB again results in a longer extent
+    	of g(t) in time.
+
+    -	Disregarding efficiency a sharp passband-to-stopband
+    	transition seems to be attractive as the loss of bandwith 
+    	is small. This is ONLY the case if the transition
+    	lies outside the audible frequency range. But if you have
+    	to have a filter cut-off e.g. at around 4kHz you don't
+    	want a sharp transition since it induces `ringing', i.e.
+    	you can hear the cut-off frequency in the output signal.
+    	This is because a sharp-edge in the frequency domain
+    	corresponds to a long impuse response in the time domain. 
+    	A short-time frequency-analyzer like the ear can detect
+    	this (and finds it annoying).
+
+    -	On the the other hand one could argue that preserving as much 
+    	bandwith as possible is a better choice, leaving the task
+    	of psychoacoustic smoothing to later stages of processing.
+    	E.g. it could be viewed as the task of the final analog
+    	reconstruction filter. 
+
+    -	The time limited version of g(t) is realized as FIR-filter
+    	of length L. For computational efficiency, time extent
+    	should be short. The more the old and new rates differ,
+	the less efficient is the conversion process. In this case,
+	multiple application of RATECONV scales better (multistage
+	design is beyond the scope of this text, see reference).
+
+    -	(8-10) rely on the ASSUMPTION that the cutoff level of the
+	gaussian window below its maximum reflects the realizable
+	S/N. This heuristic is on the safe side but often leads to
+	values of L around a THIRD larger than necessary.
+
+    -   Time limitation competes with aliasing cumulatively
+    	described by a certain amount of S/N in the output signal.
+    	Chopping off g(t) to early will result in additional
+    	smoothing of the frequency characteristics of g(t) 
+    	with a sinc-function in the frequency domain. This is
+    	MUCH worse than smoothing with the gaussian-window and
+    	induces a severe amount of aliasing easily. That's why
+    	time limitation is identified directly with a certain
+    	amount of noise in the output signal, as opposed to
+    	mirror frequency suppression described above.
+
+    -	It is not possible to have a the input signal use the full
+    	(16-bit) dynamic range and to avoid overload distortion
+    	in the output signal in all cases - if gain has to be one.
+    	Because of Gibb's phenomenon the interpolation process
+    	can overshoot on the input range to an amount of 18percent.
+    	To be one the safe side use a default gain of 0.8.
+
+
+    5. Design process step-by-step
+    ------------------------------
+
+    a)	First, the desired rate conversion ratio is used to find the
+	smallest possible integer values for u and d (3). The value
+    	of u is limited by coefficient set memory size in RATECONV.
+    	As errors of the new rate below 0.1percent should be
+    	psychoacoustically irrelvant, this is no true limitation.
+
+    b)	Choose passband and stopband parameters fPAB, aPAB and
+    	fSTB, aSTB, where fSTB is bound to the minimum-half of the
+    	input and output frequencies by (4).
+
+    	aSTB represents the minimum suppression of aliasing
+    	frequencies from above fSTB. In most audio applications,
+    	aSTB can be about 20dB lower than the intented signal-to-
+    	noise ratio for the following reasons: In frequency domain,
+    	suppression will increase rapidly above fSTB, having more
+    	effect on mirror frequencies that correspond to lower baseband
+    	frequencies; but most audio spectra gradually decrease with
+    	increasing frequency, especially the critical tonal
+    	components.
+
+    c)	Find values of x corresponding to a using (5a,5b). (5a,5b)
+    	become inaccurate, if not fgK >> fgG (s.below)). Since
+    	inversion of the formula is difficult, use following table to
+    	interpolate:
+				TABLE_A
+
+        a =   1dB  3dB 6dB 30dB 36dB 42dB 48dB 54dB 60dB 66dB 72dB 96dB
+        x = -.981-.435  .0 1.48 1.71 1.86 2.12 2.30 2.47 2.63 2.78 3.33
+
+    d)	Determine the key frequencies fgK and fgG using (6) and (7)
+
+    e)	Choose minimum signal-to-noise ratio SN. Below noise level,
+    	SEVERE aliasing occurs due to time limitation of g(t).
+    	This is a CRITICAL parameter.
+
+    f)	Find y followed by Ty using (8) and (9), and finally the
+    	FIR-filter lenght L using (10). The following table can be
+	used to resolve the dependencies of L, SN, fgG and fsin in
+	common cases:
+				TABLE_B
+        
+        fgG/fsin = .100 .075 .050 .040 .030 .025 .020 .015 .010 .005
+        
+        L = 10  SN = 22   12    .    .    .    .    .    .    .    . 
+            20       98   55   25   16    .    .    .    (SN < 10dB)  
+            30        .  129   57   37   21   14    .    .    .    . 
+            40        .    .  104   66   37   26   17    .    .    . 
+            50        .    .  164  105   59   41   26   15    .    . 
+            60        .    .    .  152   85   59   38   21    .    . 
+            70        .    .    .    .  117   81   52   29   13    . 
+            80        .    .    .    .  153  106   68   38   17    . 
+            90        .    .    .    .  194  135   86   49   22    . 
+           100        .    .    .    .    .  167  107   60   27    . 
+           120        .    .    .    .    .    .  154   87   39   10 
+           140        .    .    .    .    .    .    .  119   53   13 
+           160        .    .    .    .    .    .    .  155   69   17 
+           180        .    .    .    .    .    .    .  197   87   22 
+           200        .    .    (SN > 200dB)   .    .    .  108   27 
+           250        .    .    .    .    .    .    .    .  169   42 
+           300        .    .    .    .    .    .    .    .    .   61 
+           350        .    .    .    .    .    .    .    .    .   83 
+           400        .    .    .    .    .    .    .    .    .  109dB 
+
+
+    g)	Repeat from b), if L is too big to perform rate conversion
+    	fast enough, relaxing design prescriptions in b) and e).
+
+    h)	Finally, a good testing method is to use a slow sweeping
+    	sine wave passing between fsin/2 and 0. Listening to the
+    	converted signal reveals mirror frequencies moving the
+    	opposite direction, if mirror frequency suppression is
+    	too weak and/or if SN is too low.
+
+
+    6. Examples
+    -----------
+
+        DAT-to-CD:
+
+    		fsin = 48kHz*
+     		fsout = 44.1kHz
+    		(3) -> u = 147*
+    		(3) -> d = 160*
+    		(3) -> realized fsout = 44.1kHz (exact)
+    		fPAB = 20kHz
+    		aPAB = 1dB
+    		(4) -> fSTB = 22.05kHz
+    		aSTB = 96dB
+    		(5a) -> xPAB = -0.981
+    		(5b) -> xSTB =  3.33
+    		(6) -> fgG = 476Hz*
+    		(7) -> fgK = 20467Hz*
+    		SN = 96 
+    		(8) -> y = 63096
+    		(9) -> Ty = 3.94ms
+    		(10) -> L = 190*
+
+    	    *arguments for RATECONV: 48000 20467 476 190 147 160
+
+        CD-to-DAT:
+
+    		fsin = 44.1kHz
+     		fsout = 48kHz
+    		fPAB = 20kHz
+    		aPAB = 1dB
+    		aSTB = 96dB
+
+    	    use the same calculation as in example 1 until it gets to L
+
+    		(10) -> L = 174*
+
+    	    *arguments for RATECONV: 44100 20467 476 174 160 147
+
+        Double rate:
+
+    		fsin = 1*
+     		fsout = 2
+    		(3) -> u = 2*
+    		(3) -> d = 1*
+    		fPAB = 0.45
+    		aPAB = 1(3)dB
+    		(4) -> fSTB = 0.5
+    		aSTB = 72(66)dB
+    		(5a) -> xPAB = -0.981(0.435)
+    		(5b) -> xSTB =  2.78(2.63)
+    		(6) -> fgG = 0.0133(0.0163)*
+    		(7) -> fgK = 0.463(0.457)*
+    		SN = 72(66)dB 
+    		(8) -> y = 3981(1995)
+    		(9) -> Ty = 122(96)
+    		(10) -> L = 122(96)
+ 
+    	    *arguments for RATECONV: 1 0.45 0.0133 122 2 1
+    			            (1 0.45 0.0163 96 2 1)
+
+        Halve rate:
+
+    		fsin = 1*
+     		fsout = 0.5
+    		(3) -> u = 1*
+    		(3) -> d = 2*
+    		fPAB = 0.225
+    		aPAB = 1dB
+    		(4) -> fSTB = 0.25
+    		aSTB = 72dB
+    		(5a) -> xPAB = -0.981
+    		(5b) -> xSTB =  2.78
+    		(6) -> fgG = 0.00665*
+    		(7) -> fgK = 0.2315*
+    		SN = 72dB 
+    		(8) -> y = 3981
+    		(9) -> Ty = 245
+    		(10) -> L = 245
+
+    	    *arguments for RATECONV: 1 0.225 0.00665 245 1 2
+
+        12.8kHz to 11.05kHz:
+
+    		fsin = 12.8kHz*
+     		fsout = 11.05kHz
+    		(3) -> u = 25*
+    		(3) -> d = 29*
+    		(3) -> realized fsout = 11.03kHz
+    		fPAB = 5000Hz
+    		aPAB = 3dB
+    		(4) -> fSTB = 5.525kHz
+    		aSTB = 48dB
+    		(5a) -> xPAB = -0.435
+    		(5b) -> xSTB =  2.12
+    		(6) -> fgG = 205Hz*
+    		(7) -> fgK = 5089Hz*
+    		SN = 66
+    		(8) -> y = 2048
+    		(9) -> Ty = 7.60ms
+    		(10) -> L = 98*
+
+    	    *arguments for RATECONV: 12800 5089 205 98 25 29
+
+
+    7. Comments to experts
+    ----------------------
+
+    -	I have yet no proof for the ASSUMPTION that the time-cutoff
+	level of the gaussian window governs S/N. Experiments have
+	shown that this heuristic is on the safe side meaning that
+	L is longer than necessary. One could argue that the absolute
+        height of the envelope of the sampled version gs(n) =
+	g(n/fsin)/fsin of g(t) should be taken. The envelope for
+	|2*fgK*n/fsin| >= 1 is, using sinc(x) = sin(x)/x, 
+
+    	e{gs(n)} = e{2*fgK*sinc(pi*2*fgK*n/fsin)/fsin} *
+    				e{exp(-pi*(2*fgG*n/fsin)**2)}
+    		 = 1/(pi * n) *  exp(-pi*(2*fgG*n/fsin)**2).
+
+    	We want to have e{gs([L/2]+1)} <= 1/y for a given y specified
+	by (8). Obviously the effect of the fraction 1/(pi * n) is
+	not present in (9). Taking it into account leads to values
+	of L being around a third smaller. However, experiments prove
+	these values to realize an S/N often smaller than intended.
+	This needs clarification.
+
+    -	Deduction of the frequency response G(w) of g(t):
+    	g(t), G(w) form a Fourier-correspondence
+
+    	    g(t) = 2*fgK*sinc(pi*2*fgK*t) * exp(-pi*(2*fgG*t)**2),
+    	    G(w) = (s(w + 2*pi*fgK) - s(w - 2*pi*fgK))
+    	             (convolution along w)
+    	                    exp(-pi*(w/4*pi*fgG)**2)/(2*fgG),
+
+    	where s(x) = {1 if x > 1; 0 if x < 0; 0.5 if x = 0}.
+    	Evalution of the convolution with on of the s(...)-terms
+    	corresponds to integration of the exp(...)-term over w and a
+    	w-shift of +/-2*pi*fgK, yielding
+
+    	    G(w) = 0.5*(1+erf(sqrt(pi)/2 * (w/(2*pi) + fgK)/fgG)) -
+    	           0.5*(1+erf(sqrt(pi)/2 * (w/(2*pi) - fgK)/fgG))
+
+    	Since the first term amounts to 1, if w > 0 and fgK >> fgG,
+    	we obtain in sane cases the sufficiently close approximation
+
+    	    G(w) = 0.5*(1-erf(sqrt(pi)*x/2),
+
+    	relied on by (5-7), where x = (w/(2*pi) - fgK)/fgG, w=2*pi*f.
+
+    -	The approach to use a time limited, gaussian-windowed
+	sinc-function possibly doesn't lead to a very short FIR-lenght
+	as more elaborate decimation/interpolation-filter designs.
+	But I presume that, largely, it's only off by a factor of two.
+
+    -	Of course all frequencies can be normalized by fsin. Only
+    	ratios of frequencies to sampling frequencies are
+    	signififcant. This goes especially for the specifications
+    	of the lowpass design. Therefore, explicit specification of
+    	fsin could be avoided. But for psychoacoustic reasons the
+    	design enforces the notion of absolute frequencies
+    	(See trade-off on steepness).
+
+
+    8. References
+    -------------
+
+    Specifically:
+
+    [1] Crochiere, R. E., Rabiner, L. R.: "Multirate Digital Signal
+        Processing", Prentice-Hall, Englewood Cliffs, New Jersey, 1983
+
+    Generally:
+
+    [2] Zwicker, E., Fastl, H.: "Psychoacoustics - Facts and Models",
+        Springer-Verlag, Berlin, Heidelberg, New-York, Tokyo, 1990
+
+    [3] Books on Time discrete signal processing, systems theory ...
+        like those from Oppenheim and Schafer (check with your
+        librarian...)
+
+
+    ===EOT===$Id$
+

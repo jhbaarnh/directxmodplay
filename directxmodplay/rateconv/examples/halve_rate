@@ -1,0 +1,14 @@
+# $Id$
+#
+# halve_rate - RATECONV-FRONTEND to halve sampling rate
+#
+# passband to stopband transition from 0.225 to 0.25 of
+# the input sampling frequencies corresponding to <=1dB loss
+# and >=72dB mirror suppression, S/N is > 72dB
+# overall gain -2dB
+#
+# Slow.
+#
+exec rateconv $* 1 0.225 0.00665 245 1 2 0.8
+# 
+# Mum/951125

@@ -1,16 +1,20 @@
 #include "DirectXMODPlay.h"
 #include "moduleplayer.h"
 #include "xmplayer.h"
+#include "playerfactory.h"
 
 using namespace DXModPlay;
 
-BOOL DirectXMODPlayer::Load(std::istream &ModuleName)
+BOOL DirectXMODPlayer::Load(std::istream &ModuleName, ModuleType type)
 {
 	if (DXInterface != NULL)
 	{
 		SAFE_DELETE(Player);
+
 		DEBUGPRINT(2, "Allocating player");
-		Player = new XMPlayer(Timer, DXInterface);
+		PlayerFactory *factory = new PlayerFactory(Timer, DXInterface);
+		Player = factory->getPlayer(type);
+
 		DEBUGPRINT(2, "Reading module");
 		return InitModule(ModuleName);
 	}
@@ -24,14 +28,6 @@ DirectXMODPlayer::DirectXMODPlayer(VOID)
 	this->Timer = new ModuleTimer();
 	DXInterface = NULL;
 	Player = NULL;
-}
-
-BOOL DirectXMODPlayer::Init(HWND hwnd)
-{
-	DeInit();
-	DXInterface = new DirectSoundInterface(hwnd);
-
-	return TRUE;
 }
 
 BOOL DirectXMODPlayer::DownSample(VOID)
@@ -55,7 +51,7 @@ BOOL DirectXMODPlayer::DownSample(VOID)
 				INT L = (INT)(162 * (DOUBLE)d / u + 0.5);
 				DOUBLE gain = 0.8;
 
-				int newLen = rateconv((WORD *)module->Instruments[instrument].Samples[sample].Data, module->Instruments[instrument].Samples[sample].Length / sizeof(WORD), (WORD *)newSample, fsin, fgG, fgK, u, d, L, gain, 0, 1);
+				int newLen = rateconv((int *)module->Instruments[instrument].Samples[sample].Data, module->Instruments[instrument].Samples[sample].Length / sizeof(int), (int *)newSample, fsin, fgG, fgK, u, d, L, gain, 0, 1);
 				if (newLen == 0)
 				{
 					DEBUGPRINT(1, "Resampling failed");
@@ -116,14 +112,21 @@ DWORD Ticks;
 LPMODULE CurrentModule;
 FormatPlayer *MODPlayer;
 ModuleTimer *MODTimer;
+VOID *PlayCallBackData, *TickCallBackData;
+ModuleCallBack PlayCallBack, TickCallBack;
 
 VOID ModuleTimerCallBack(VOID)
 {
 	DEBUGPRINT(6, "Timer callback");
+	if (TickCallBack != NULL)
+		(*TickCallBack)(TickCallBackData);
 
 	// Need >=, because Tempo can be changed (ie subtracted, in which case we would have an error...)
 	if (++Ticks >= CurrentModule->Tempo)
 	{
+		if (PlayCallBack != NULL)
+			(*PlayCallBack)(PlayCallBackData);
+
 		MODPlayer->PlayRow();
 		Ticks = 0;
 	}
@@ -160,6 +163,29 @@ DWORD WINAPI PlayModuleThread(LPVOID lpThreadParameter)
     } 
 
 	return TRUE;
+}
+
+BOOL DirectXMODPlayer::Init(HWND hwnd)
+{
+	DeInit();
+	DXInterface = new DirectSoundInterface(hwnd);
+	
+	PlayCallBack = NULL;
+	TickCallBack = NULL;
+
+	return TRUE;
+}
+
+VOID DirectXMODPlayer::SetPlayCallBack(ModuleCallBack CallBack, VOID *Data)
+{
+	PlayCallBack = CallBack;
+	PlayCallBackData = Data;
+}
+
+VOID DirectXMODPlayer::SetTickCallBack(ModuleCallBack CallBack, VOID *Data)
+{
+	TickCallBack = CallBack;
+	TickCallBackData = Data;
 }
 
 BOOL DirectXMODPlayer::Play(VOID)
@@ -231,17 +257,20 @@ BOOL DirectXMODPlayer::Stop(VOID)
 		return FALSE;
 }
 
-VOID DirectXMODPlayer::SetVolume(LONG Volume)
+VOID DirectXMODPlayer::SetVolume(UCHAR Volume)
 {
 	if (Player != NULL)
 		Player->SetVolume(Volume);
 }
 
-LONG DirectXMODPlayer::GetVolume(VOID)
+UCHAR DirectXMODPlayer::GetVolume(VOID)
 {
 	if (Player != NULL)
 		return Player->GetVolume();
 	else
 		return 0;
 }
+
+VOID SetPlayCallBack(ModuleCallBack CallBack, VOID *Data);
+VOID SetTickCallBack(ModuleCallBack CallBack, VOID *Data);
 

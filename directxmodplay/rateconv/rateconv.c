@@ -147,18 +147,7 @@
  *	    Springer-Verlag, Berlin, Heidelberg, New-York, Tokyo, 1990
  */
 
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-
-//extern char *malloc();
-/*
- * assume
- *	extern void free(), perror(); 
- *	extern int read(), write(), close();
- */
+#include "stdafx.h"
 
 /*
  *	adaptable defines and globals
@@ -179,12 +168,12 @@
 #define INBUFFSIZE	(16*MAXLENGTH)	/* fit >=2*MAXLENGTH stereo samples */
 #define sqr(a)	((a)*(a))
 					/* platform architecture flags: */
-//#ifndef I_AM_BIG_ENDIAN			/*   adressing of high WORD of LONG */
+#ifndef I_AM_BIG_ENDIAN			/*   adressing of high WORD of LONG */
 # define I_AM_LITTLE_ENDIAN		/*   depends on this, as well as */
 # define SWAP_BYTE_FLAG	-1		/*   the adressing of BYTE in WORD */	
-//#else
-//# define SWAP_BYTE_FLAG	0
-//#endif
+#else
+# define SWAP_BYTE_FLAG	0
+#endif
 
 #ifdef	HBYTE1ST_DEFAULT		/* HB,LB order in stream by default: */
  int	g_swapflag = SWAP_BYTE_FLAG;	/*   the magic about SWAP_BYTES_FLAG */
@@ -220,8 +209,6 @@ double
 	g_fgk,				/* sinc-filter cutoff frequency */
 	g_fgg				/* gaussian window key frequency */
 ;					/* (6.8dB down freq. in f-domain) */
-
-#define M_PI 3.141592	
 
 /*
  *	evaluate sinc(x) = sin(x)/x safely
@@ -534,91 +521,6 @@ LONG *buff;
 }
 
 /*
- *	print usage
- */
-/*
-void print_usage(argc, argv)
-int argc;
-char *argv[];
-{
-	char rev[20], date[40], writeable[80];
-
-	sprintf(writeable, "$Revision$ $Date$");
-	sscanf(writeable, "$%*s %s $ $%*s %s %*s $", rev, date);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "    Sample rate conversion from stdin to ");
-	fprintf(stderr, "stdout  [V%s/%s Mummert]\n", rev, date);
-	fprintf(stderr, "    Usage: %s [-hlms] <fsin> <fgK> <fgG> ", argv[0]);
-	fprintf(stderr, "<lenght> <up> <down> [<gain>]\n");
-	fprintf(stderr, "      -h -l     sample format HB,LB ");
-#ifdef HBYTE1ST_DEFAULT
-		fprintf(stderr, "(default) or LB,HB\n");
-#else
-		fprintf(stderr, "or LB,HB (default)\n");
-#endif
-	fprintf(stderr, "      -m -s     mono ");
-#ifdef STEREO_DEFAULT
-		fprintf(stderr, "or stereo (default) mode\n");
-#else
-		fprintf(stderr, "(default) or stereo mode\n");
-#endif
-	fprintf(stderr, "      <fsin>    input sampling frequency in Hz\n");
-	fprintf(stderr, "      <fgK>     sinc-filter cutoff frequency\n");
-	fprintf(stderr, "      <fgG>     gaussian-window key frequency ");
-	fprintf(stderr, "(6.8dB-down point)\n");
-	fprintf(stderr, "      <length>  lenght of IR of resulting FIR-");
-	fprintf(stderr, "filter (1...%d)\n",MAXLENGTH);
-	fprintf(stderr, "      <up>      upsampling factor ");
-	fprintf(stderr, "(1...%d)\n",MAXUP);
-	fprintf(stderr, "      <down>    downsampling factor\n");
-	fprintf(stderr, "      <gain>    over-all-gain (default ");
-	fprintf(stderr, "0.8 safe on filter overshoot)\n");
-	fprintf(stderr, "\n");
-}
-*/
-/*
- *	check command line parameters and get their values
- */
-/*
-int check_args(argc, argv)
-int argc;
-char *argv[];
-{
-	int n = 1, k;
-
-	while (n <= argc-1 && argv[n][0] == '-') {
-		for (k = 1; argv[n][k] != 0; k++) {
-			switch (argv[n][k]) {
-				case 'h': g_swapflag = SWAP_BYTE_FLAG; break;
-				case 'l': g_swapflag = !SWAP_BYTE_FLAG; break;
-				case 'm': g_monoflag = -1; break;
-				case 's': g_monoflag = 0; break;
-				default:  return(-1);
-			}
-		}
-		if (k == 1)
-			return(-1);
-		n++;
-	}
-	if (argc < n+6 || argc > n+7) 
-		return(-1);
-	sscanf(argv[n++],"%lf",&g_fsi);
-	sscanf(argv[n++],"%lf",&g_fgk);
-	sscanf(argv[n++],"%lf",&g_fgg);
-	sscanf(argv[n++],"%d",&g_firlen);
-	if (g_firlen < 1 || g_firlen > MAXLENGTH)
-		return(-1);
-	sscanf(argv[n++],"%d",&g_up);
-	if (g_up < 1 || g_up > MAXUP)
-		return(-1);
-	sscanf(argv[n++],"%d",&g_down);
-	if (argc > n)
-		sscanf(argv[n++],"%lf",&g_ampli);
-	return(0);
-}
-*/
-
-/*
  *	set up coefficient array
  */
 void make_coe()
@@ -633,63 +535,6 @@ void make_coe()
 	}
 }
 
-/*
- *	main
- */
-/*
-int main(argc, argv)
-int argc;
-char *argv[];
-{
-	extern char *malloc();
-	int insize = 0, outsize = 0, skirtlen;
-
-	if (check_args(argc, argv)) {
-	    print_usage(argc, argv);
-	    exit(-1);
-	}
-	if ((g_coep = (LONG*)malloc(g_firlen * g_up * sizeof(int))) == NULL) {
-		fprintf(stderr, "cannot allocate coefficient memory\n");
-		exit(-1);
-	}
-	make_coe();
-	skirtlen = (g_firlen - 1) * (g_monoflag ? 1 : 2);
-	zerofill(g_sin, skirtlen);
-	do {
-	    insize = intread(g_infilehandle, g_sin + skirtlen,
-		INBUFFSIZE - skirtlen);
-	    if (insize < 0 || insize > INBUFFSIZE - skirtlen) 
-		ioerr_exit("stdin");
-	    do {
-		outsize = filtering_on_buffers(g_sin, skirtlen + insize,
-		    g_sout, OUTBUFFSIZE, g_coep, g_firlen, g_up, g_down,
-		    	g_monoflag);
-		if (outsize != OUTBUFFSIZE) {
-	    	    transfer_int(g_sin + insize, g_sin, skirtlen);
-		    break;
-		}
-		if (intwrite(g_outfilehandle, g_sout, outsize) != outsize) 
-		    ioerr_exit("stdout");
-	    } while (-1);
- 	} while (insize > 0);
-	zerofill(g_sin + skirtlen, skirtlen);
-	do {
-	    outsize = filtering_on_buffers(g_sin, skirtlen + skirtlen,
-		g_sout, OUTBUFFSIZE, g_coep, g_firlen, g_up, g_down,
-		      g_monoflag);
-	    if (intwrite(g_outfilehandle, g_sout, outsize) != outsize) 
-		ioerr_exit("stdout");
-	} while (outsize == OUTBUFFSIZE); 
-
-	if (close(g_infilehandle)) 
-		ioerr_exit("stdin");
-	if (close(g_outfilehandle))
-		ioerr_exit("stdout");
-
-	free(g_coep);
-	exit(0);
-}
-*/
 
 int rateconv(WORD *in, unsigned int in_size, WORD *out, double fsin, double fgG, double fgK, int u, int d, int L, double gain, int stereo, int little_endian)
 {
@@ -720,10 +565,6 @@ int rateconv(WORD *in, unsigned int in_size, WORD *out, double fsin, double fgG,
 	make_coe();
 	skirtlen = (g_firlen - 1) * (g_monoflag ? 1 : 2);
 	zerofill(g_sin, skirtlen);
-	//zerofill(in, in_size);
-//	memset(in, 0, in_size * sizeof(WORD));
-//	memset(out, 0, in_size * sizeof(WORD));
-	//out_size = filtering_on_buffers(in, in_size, out, in_size, g_coep, g_firlen, g_up, g_down, g_monoflag);
 	
 	while (in_size > 0) 
 	{

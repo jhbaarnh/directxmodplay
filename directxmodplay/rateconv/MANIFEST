@@ -1,0 +1,10 @@
+total 112
+-rw-r--r--   1 mummert  benutzer     1262 Dec 09 03:18 COPYING
+-rw-------   1 mummert  benutzer     1118 Dec 09 03:18 HISTORY
+-rw-r--r--   1 mummert  benutzer        0 Dec 09 04:42 MANIFEST
+-rw-------   1 mummert  benutzer     2237 Dec 09 03:18 Makefile
+-rw-------   1 mummert  benutzer     5650 Dec 09 03:18 README
+drwxrwxrwx   2 mummert  benutzer      224 Dec 09 04:42 examples
+-rw-r--r--   1 mummert  benutzer    18115 Dec 09 03:18 rateconv.c
+-rw-r--r--   1 mummert  benutzer    18837 Dec 09 03:18 rateconv.txt
+-rwxr-xr-x   1 mummert  benutzer     2429 Dec 09 04:41 rcv

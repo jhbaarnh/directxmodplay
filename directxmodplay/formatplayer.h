@@ -17,15 +17,15 @@ class FormatPlayer
 		virtual VOID PlayRow(VOID) = 0;
 		virtual LPMODULE ReadModule(std::istream &Input) = 0;
 		virtual BOOL InitPlay(VOID) = 0;
-		virtual VOID SetVolume(LONG Volume) = 0;
-		virtual LONG GetVolume(VOID) = 0;
+		virtual VOID SetVolume(UCHAR Volume) = 0;
+		virtual UCHAR GetVolume(VOID) = 0;
 		virtual BOOL CheckFrequencies(VOID) = 0;
 		
 	protected:
 		MODULE module;
 		ModuleTimer *Timer;
 		DirectSoundInterface *DXInterface;
-		LONG GlobalVolume;
+		UCHAR GlobalVolume;
 };
 }
 #endif

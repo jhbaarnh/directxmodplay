@@ -1,0 +1,34 @@
+#
+# $Id$
+#
+# HISTORY for rateconv
+# ====================
+#
+# (enter manual modifications below RCS-`Log'-line, order time-reversed)
+#
+# $Log$
+# Revision 1.5  1995/12/09  02:16:21  mummert
+# Added shell script rcv;
+# changed g_hb1stflag back to g_swapflag, introduced SWAP_BYTE_FLAG
+# to set stream byte order independendly from platform architecture;
+# renamed directory `frontends' to `examples'; removed a2x.c;
+# review of text portions.
+#
+# Revision 1.4  1995/12/03  23:23:02  mummert
+# stereo implementation
+# full symmetry by replacing [L/2] with (L-1)/2
+# SWAP... and g_swap... changed to HBYTE1ST_DEFAULT and g_hb1stflag
+# review of text portions
+#
+# Revision 1.3  1995/11/26  23:18:26  mummert
+# Moved XXX_ENDIAN defs to I_AM_XXX_ENDIAN to avoid conflicts with
+# system-wide defined constants; changed default gain from 0.9 to
+# 0.8, because Gibb's overshoot is not 9 but 18percent; some frontends
+# are now provided in directory 'frontends'
+#
+# Revision 1.2  1995/02/16  04:18:02  mummert
+# Arrangement as a complete distribution
+#
+#
+# EOT
+

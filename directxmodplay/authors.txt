@@ -1,0 +1,5 @@
+DirectXMODPlay authors
+======================
+(in alphabetical order)
+
+Henrik B‰‰rnhielm, <redstar@linux.nu>

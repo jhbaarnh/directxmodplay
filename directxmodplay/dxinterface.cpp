@@ -308,13 +308,12 @@ BOOL DirectSoundInterface::SetPan(UINT SampleNum, UINT Channel, DOUBLE Pan)
 
 BOOL DirectSoundInterface::SetVolume(UINT SampleNum, UINT Channel, DOUBLE Volume)
 {
-	DEBUGPRINT(4, "Setting volume to %f", Volume);
-	// TrackerVol range is 0..255
-	// Make vol range DBSVOLUME_MIN..DBSVOLUME_MAX
-	// DirectSound max volume is "normal" volume, so count downwards from max
-	//LONG FinalVol = (LONG)(DSBVOLUME_MAX - (DOUBLE)Volume/256 * abs(DSBVOLUME_MAX - DSBVOLUME_MIN) + 0.5);
-	LONG FinalVol = (LONG)(Volume/256 * abs(DSBVOLUME_MAX - DSBVOLUME_MIN) + 0.5 + DSBVOLUME_MIN);
-	DEBUGPRINT(4, "Setting DX volume to %ld", FinalVol);
+	DEBUGPRINT(8, "Setting volume to %f", Volume);
+	
+	// TrackerVol range is 0..127
+	LONG FinalVol;
+	FinalVol = (LONG)((pow(Volume / 128, 1/(DOUBLE)12) - 1) * abs(DSBVOLUME_MAX - DSBVOLUME_MIN) - 0.5);
+	DEBUGPRINT(8, "Setting DX volume to %ld", FinalVol);
 
 	if (FAILED(Samples[SampleNum][Channel]->SetVolume(FinalVol)))
 		return FALSE;

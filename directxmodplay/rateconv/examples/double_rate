@@ -1,0 +1,14 @@
+# $Id$
+#
+# double_rate - RATECONV-FRONTEND to double sampling rate
+#
+# passband to stopband transition from 0.45 to 0.5 of
+# the input sampling frequency corresponding to <=1dB loss
+# and >=72dB mirror suppression, S/N is > 72dB
+# overall gain -2dB
+#
+# Slow.
+#
+exec rateconv $* 1 0.45 0.0133 122 2 1 0.8
+# 
+# Mum/951125

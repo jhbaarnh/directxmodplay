@@ -1,0 +1,13 @@
+# $Id$
+# 
+# 10_11.025 RATECONV-FRONTEND 10 to 11.025kHz
+#
+# Implemented resampling ratio is 5/6
+# 0.2percent pitch error (inaudible)
+# approx. -3dB at 4.375kHz, S/N > 72dB
+# worst-case mirror suppression 45dB
+# overall gain -2dB
+#
+exec rateconv $* 10000 4500 250 65 6 5 0.8
+#
+# Mum/951125

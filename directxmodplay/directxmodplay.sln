@@ -1,6 +1,11 @@
 Microsoft Visual Studio Solution File, Format Version 8.00
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "directxmodplay", "directxmodplay.vcproj", "{62350C3C-0EA7-4E76-A62B-AB1EFFA1E226}"
 	ProjectSection(ProjectDependencies) = postProject
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6} = {AA6DC122-3700-4AD2-9A03-02690DAEC4B6}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "rateconv", "rateconv\rateconv.vcproj", "{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}"
+	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
 Global
@@ -16,6 +21,12 @@ Global
 		{62350C3C-0EA7-4E76-A62B-AB1EFFA1E226}.Release.Build.0 = Release|Win32
 		{62350C3C-0EA7-4E76-A62B-AB1EFFA1E226}.Test.ActiveCfg = Test|Win32
 		{62350C3C-0EA7-4E76-A62B-AB1EFFA1E226}.Test.Build.0 = Test|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Debug.ActiveCfg = Debug|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Debug.Build.0 = Debug|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Release.ActiveCfg = Release|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Release.Build.0 = Release|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Test.ActiveCfg = Release|Win32
+		{AA6DC122-3700-4AD2-9A03-02690DAEC4B6}.Test.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 	EndGlobalSection

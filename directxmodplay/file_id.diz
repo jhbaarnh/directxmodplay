@@ -1,0 +1,10 @@
+        DirectXMODPlay v0.1
+          alpha version
+http://directxmodplay.sourceforge.net
+
+DirectXMODPlay is a module player library
+for DirectSound. It is released under the
+GNU Lesser General Public License (LGPL)
+and is targetted toward game developers
+that want to include module music in 
+their games.

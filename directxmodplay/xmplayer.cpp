@@ -228,6 +228,8 @@ BOOL XMPlayer::ReadXM(std::istream &modfile, LPMODULE module)
 					XMSample->LoopType = SAMPLE_PINGPONG_LOOP;
 				}
 
+				// Disable looping for the moment
+				XMSample->Loop = FALSE;
 			}
 			for (sample = 0; sample < module->Instruments[instrument].nSamples; sample++)
 			{
@@ -294,16 +296,15 @@ BOOL XMPlayer::ReadXM(std::istream &modfile, LPMODULE module)
 						module->Instruments[instrument].Samples[sample].BitsPerSample = 16;
 					}
 					
-					if (XMSample->LoopType == SAMPLE_PINGPONG_LOOP)
+	/*				if (XMSample->LoopType == SAMPLE_PINGPONG_LOOP)
 					{
 						DWORD sampleLen = module->Instruments[instrument].Samples[sample].Length;
-						LPBYTE Buffer = new BYTE[sampleLen * 2];
+						UCHAR *Buffer = new UCHAR[sampleLen * 2];
 						memcpy(Buffer, module->Instruments[instrument].Samples[sample].Data, sampleLen);
 						if (module->Instruments[instrument].Samples[sample].BitsPerSample == 16)
 						{
-							for (DWORD i = 0; i < sampleLen / 2; i++)
-								((WORD *)Buffer)[sampleLen - i - 1] = 
-									((WORD *)module->Instruments[instrument].Samples[sample].Data)[i];
+							for (DWORD i = 0; i < sampleLen; i += 2)
+								memcpy(Buffer + 2 * sampleLen - i - 2, module->Instruments[instrument].Samples[sample].Data + i, 2);
 						}
 						else
 						{
@@ -314,7 +315,7 @@ BOOL XMPlayer::ReadXM(std::istream &modfile, LPMODULE module)
 						module->Instruments[instrument].Samples[sample].Data = Buffer;
 						module->Instruments[instrument].Samples[sample].Length *= 2;
 					}
-
+*/
 					module->Instruments[instrument].Samples[sample].DownSampleFactor = 1;
 					module->Instruments[instrument].Samples[sample].UpSampleFactor = 1;
 				}
@@ -423,12 +424,12 @@ inline DOUBLE XMPlayer::AmigaFrequency(CHAR Note, CHAR FineTune)
 	return (8363 * 1712 / AmigaPeriod(Note, FineTune));
 }
 
-LONG XMPlayer::GetVolume(VOID)
+inline UCHAR XMPlayer::GetVolume(VOID)
 {
 	return GlobalVolume;
 }
 
-VOID XMPlayer::SetVolume(LONG Volume)
+inline VOID XMPlayer::SetVolume(UCHAR Volume)
 {
 	GlobalVolume = Volume;
 }
@@ -450,7 +451,7 @@ BOOL XMPlayer::PlayInstrument(LPINSTRUMENT instrument, CHAR NoteValue, UCHAR Vol
 	// Volume in volume column should always be adjusted
 	Volume += 0x10;
 
-	LONG EnvelopeVolume = 64;
+	LONG EnvelopeVolume = 255;
 	LONG EnvelopePan = 32;
 	LPXMINSTRUMENT XMData = (LPXMINSTRUMENT)instrument->ExtraData;
 	DEBUGPRINT(8, "Global volume: %u, Sample vol: %u, Volume: %u, Fadeout: %u", (UINT)GlobalVolume, (UINT)NoteSample->Volume, (UINT)Volume, (UINT)XMData->VolumeFadeOut);

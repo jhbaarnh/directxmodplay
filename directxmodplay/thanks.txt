@@ -1,0 +1,4 @@
+The following people deserves special thanks, since the library would not exist without their help.
+
+Dr.-Ing. Markus Mummert, <Markus.Mummert@t-online.de>, author of rateconv
+http://www.mmk.ei.tum.de/~rue/mum/

@@ -1,0 +1,139 @@
+
+    RATECONV - a universal sample rate converter
+    ============================================
+
+    This is a universal tool to convert sample rates of audio signals
+    consisting of signed 16bit data, mono or stereo. It is designed as
+    stream filter around an effcient internal structure. On-the-fly
+    conversions while recording or playing sound are possible although
+    they depend on CPU-speed and other specific demands. It can also be
+    used as a low-pass filter without changing rates. Target platforms
+    are un*x systems.
+
+    Its flexibility helps to overcome restrictions in quality, usable
+    bandwith or rate-ratios inherent to other solutions. It is easy to
+    outperform the quality of simple rate conversion schemes, e.g. the
+    one which comes with the well known sound format conversion package
+    `sox' by Lance Norskog (But `sox' seems great for all other types
+    of format conversion).
+
+    Although standard solutions are provided be warned that there
+    is no quick solution to meet all objectives at the same time with
+    computational efficiency. This is because one has to trade between
+    quality, usable bandwith and efficiency. The term `universal' implies
+    that the trade is left up to you to decide. The provided documentation
+    allows development of adapted solutions to the problem of rate
+    conversion in audio or, more generally speaking, resampling of a
+    given bandlimited function.
+
+
+    Contents:
+    ---------
+
+	1. Usage
+	2. Installation
+	3. Copyright and disclaimer
+	4. Author
+
+
+    1. Usage
+    --------
+
+        This is at a glance what you get once you've compiled and invoked
+	`rateconv':
+
+        Sample rate conversion from stdin to stdout  [...]
+        Usage: rateconv [-hlms] <fsin> <fgK> <fgG> <lenght> <up> <down> [..
+          -h -l     sample format HB,LB or LB,HB (default)
+          -m -s     mono (default) or stereo mode
+          <fsin>    input sampling frequency in Hz
+          <fgK>     sinc-filter cutoff frequency
+          <fgG>     gaussian-window key frequency (6.8dB-down point)
+          <length>  lenght of IR of resulting FIR-filter (1...1024)
+          <up>      upsampling factor (1...1024)
+          <down>    downsampling factor
+          <gain>    over-all-gain (default 0.8 safe on filter overshoot)
+
+	Now the task in general would be to find suitable paramters for
+        the specific demands you have. The shell scripts in the `examples'
+	directory use some predefined parameters and call rateconv
+	directly. Their computational efficiency versus quality varies
+        (see the internal comments). If you don't mind some inefficiency,
+	the shell script `rcv' should satisfy almost all your demands,
+	showing this upon invocation:
+
+        High quality rate conversion stdin to stdout  [...]
+        Usage:   rcv [-hlms] <up> <down> [<gain>]
+        Options: -hlms see external command rateconv
+        Args:    <up>,<down> are positive integer values
+                 their ratio determines the rate change
+                 which must be greater than about 0.16
+                 <up> may not exceed a value of 1024
+                 small rate changes compute more efficiently
+                 <gain> default is 0.8 to avoid overload
+        Specs:   1dB-edge-frequency is at 9/20 of the smaller rate
+                 S/N and mirror frequency suppression is >= 96dB
+
+	If you want to tailor the paramters of RATECONV to meet your
+        specific needs please read the file `rateconv.txt'.
+
+
+    2. Installation
+    ---------------
+
+	RATECONV was developed on SYSV386R3.2 (Intel-Architecture).
+	With the appropriate flags set in Makefile it should work on
+	a lot of other systems and architectures too. It definitely
+	runs on Linux/386, SunOS4.1.3/sparc, HP-UX8.0/9000-370 and
+	IRIX5.3/mips. 
+
+	Edit Makefile and `make', install rateconv manually to .../bin
+	together with rcv and the examples you desire.
+
+
+    3. Copyright and disclaimer
+    ---------------------------
+
+	Copyright (c) 1992, 1995 by Markus Mummert
+
+	Redistribution and use of this software, modifcation and inclusion
+	into other forms of software are permitted provided that the
+	following conditions are met:
+
+	1. Redistributions of this software must retain the above copyright
+	   notice, this list of conditions and the following disclaimer.
+	2. If this software is redistributed in a modified condition
+	   it must reveal clearly that it has been modified.
+	
+	THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+	TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+	PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+	CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+	EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+	OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+	USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+	DAMAGE.
+
+
+    4. Author
+    ---------
+
+	Questions, remarks, suggestions and advice are welcome
+	
+			Markus Mummert
+	* SNAILMAIL:	Emanuelstr. 27
+	  		D-80796 Munich
+	  		Germany
+	* PHONE:	+49 89 300 44 70
+	* MAIL:		<mum@mmk.e-technik.tu-muenchen.de>
+	  		Please Note: this adress is checked depending
+			on traffic - maybe only twice a month at the worst.
+			My own system is offline. 
+
+    ===EOT===$Id$
+
+	  

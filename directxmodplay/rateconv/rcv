@@ -1,0 +1,97 @@
+#!/bin/sh
+#
+#	$Id$
+#
+usage () {
+echo 1>&2
+echo "    High quality rate conversion stdin to stdout  $version" 1>&2
+echo "    Usage:   $myname [-hlms] <up> <down> [<gain>]" 1>&2
+echo "    Options: -hlms see external command rateconv" 1>&2
+echo "    Args:    <up>,<down> are positive integer values" 1>&2
+echo "             their ratio determines the rate change" 1>&2
+echo "             which must be greater than about 0.16" 1>&2
+echo "             <up> may not exceed a value of 1024" 1>&2
+echo "             small rate changes compute more efficiently" 1>&2
+echo "             <gain> default is 0.8 to avoid overload" 1>&2
+echo "    Specs:   1dB-edge-frequency is at 9/20 of the smaller rate" 1>&2
+echo "             S/N and mirror frequency suppression is >= 96dB" 1>&2
+echo 1>&2
+}
+
+myname=$0
+debug=""
+options=""
+get2ndpar () { echo $2; }
+version="[V`get2ndpar $Revision$Revision`"
+version="$version/`get2ndpar $Date$Date` Mummert]"
+
+while [ $# -gt 0 ]
+do
+	case $1
+	in
+		-*h*m*|-*m*h*)	options="$options -hm" ;;
+		-*h*s*|-*s*h*)	options="$options -hs" ;;
+		-*l*m*|-*m*l*)	options="$options -lm" ;;
+		-*l*s*|-*s*l*)	options="$options -ls" ;;
+		-*h*)	options="$options -h" ;;
+		-*s*)	options="$options -s" ;;
+		-*m*)	options="$options -m" ;;
+		-*l*)	options="$options -l" ;;
+		-d)	debug="-d" ;;
+		-*)	echo "$myname: wrong option $1" 1>&2
+			usage
+			exit 255 ;;
+		*)	break ;;
+	esac
+	shift
+done
+
+u=${1:-is_unset}
+d=${2:-is_unset}
+gain=${3:-0.8}
+
+# check if $u, $d are numbers (may not work on all `sh'-shells) ...
+test $u -eq $u -a $d -eq $d 2>/dev/null
+if [ $? -ne 0 -o $u = is_unset -o $d = is_unset -o $# -gt 3 ]	
+then
+	usage
+	exit 255
+fi
+
+# more sanity checks ...
+if [ $u -lt 1 -o $d -lt 1 ]
+then
+	echo "$myname: <up>,<down> must be positve" 1>&2
+	exit 255
+fi
+
+if [ $u -gt 1024 ]
+then
+	echo "$myname: <up> too high" 1>&2
+	exit 255
+fi
+
+if [ $u -ge $d ]
+then 	# upsampling ...
+	fsin=1.0
+    	fgG=0.0116
+    	fgK=0.461
+    	L=162
+else 	# downsampling ...
+	fsin=1.0
+    	fgG=`awk "BEGIN{print $u/$d * 0.0116}" 0<&-`
+    	fgK=`awk "BEGIN{print $u/$d * 0.461}" 0<&-`
+    	L=`awk "BEGIN{print int(162 * $d/$u)}" 0<&-`
+	if [ $L -gt 1024 ]
+	then
+		echo "$myname: <up>/<down> too small" 1>&2
+		exit 255
+	fi
+fi
+
+if [ "$debug" = "-d" ]
+then
+	echo rateconv $options $fsin $fgK $fgG $L $u $d $gain 1>&2
+fi
+exec rateconv $options $fsin $fgK $fgG $L $u $d $gain
+

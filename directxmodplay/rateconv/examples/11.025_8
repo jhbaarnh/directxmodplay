@@ -1,0 +1,14 @@
+# $Id$
+#
+# 11.025_8 - RATECONV-FRONTEND 11.025 to 8kHz
+#
+# Implemented resampling ratio is 8/11
+# 0.2percent pitch error (inaudible)
+# S/N > 72dB, worst-case mirror suppression 45dB
+# overall gain -2dB
+# 
+# exec rateconv $* 11025 3400 300 60 8 11 0.8  # fast,weak cutoff,loose bandwith
+  exec rateconv $* 11025 3600 200 90 8 11 0.8  # -3dB at 3.5kHz, compromise
+# exec rateconv $* 11025 3800 100 180 8 11 0.8 # slow,steep cutoff,slight ring
+# 
+# Mum/951125

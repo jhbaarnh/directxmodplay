@@ -1,0 +1,8 @@
+DirectXMODPlay ToDO
+===================
+
+- Add documentation, probably in doxygen format
+- Add Makefiles for nmake
+- Add support for general format players
+- Add more format players (for MOD, S3M and IT at least)
+- Fix better error handling, using exceptions

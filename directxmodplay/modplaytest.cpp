@@ -21,7 +21,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	ifstream module;
 	try 
     {
-		module.open("E:\\MUSIC\\MODS\\ZADOK.XM", ios_base::in | ios_base::binary);
+		module.open("E:\\MUSIC\\MODS\\IMAGINE.XM", ios_base::in | ios_base::binary);
     }
     catch( ios_base::failure f ) 
     {
@@ -32,12 +32,12 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	DirectXMODPlayer *Player = new DirectXMODPlayer();
 	Player->Init(hWnd);
-	if (!Player->Load(module))
+	if (!Player->Load(module, MODULE_XM))
 	{
 		std::cout << "Could not load module" << endl;
 		return -2;
 	}
-	Player->SetVolume(105000);
+	Player->SetVolume(255);
 	Player->Play();
 	
 	Sleep(1000000);

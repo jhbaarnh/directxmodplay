@@ -22,7 +22,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				PreprocessorDefinitions="DIRECTXMODPLAY_EXPORTS"
-				MinimalRebuild="FALSE"
+				ExceptionHandling="TRUE"
 				BasicRuntimeChecks="0"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="2"
@@ -35,9 +35,11 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dsound.lib"
+				AdditionalDependencies="dsound.lib rateconv.lib"
 				OutputFile="$(InputDir)\$(ProjectName).dll"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="$(InputDir)\rateconv"
+				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="TRUE"
 				AssemblyDebug="1"/>
 			<Tool
@@ -81,9 +83,10 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dsound.lib"
+				AdditionalDependencies="dsound.lib rateconv.lib"
 				OutputFile="$(InputDir)\$(ProjectName).dll"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="$(InputDir)\rateconv"
 				GenerateDebugInformation="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -126,6 +129,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dsound.lib directxmodplay.lib"
+				IgnoreAllDefaultLibraries="FALSE"
 				GenerateDebugInformation="TRUE"
 				AssemblyDebug="1"/>
 			<Tool
@@ -209,7 +213,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\rateconv.c">
+				RelativePath=".\playerfactory.cpp">
 				<FileConfiguration
 					Name="Test|Win32"
 					ExcludedFromBuild="TRUE">
@@ -250,6 +254,9 @@
 				RelativePath=".\moduletimer.h">
 			</File>
 			<File
+				RelativePath=".\playerfactory.h">
+			</File>
+			<File
 				RelativePath=".\StdAfx.h">
 			</File>
 			<File
@@ -261,6 +268,27 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}">
 		</Filter>
+		<File
+			RelativePath=".\authors.txt">
+		</File>
+		<File
+			RelativePath=".\Copying">
+		</File>
+		<File
+			RelativePath=".\file_id.diz">
+		</File>
+		<File
+			RelativePath=".\license.txt">
+		</File>
+		<File
+			RelativePath=".\ReadMe.txt">
+		</File>
+		<File
+			RelativePath=".\thanks.txt">
+		</File>
+		<File
+			RelativePath=".\ToDo.txt">
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
