@@ -2,6 +2,7 @@
 #include <mmsystem.h>
 #include <mmreg.h>
 #include <dsound.h>
+#include <math.h>
 
 // The following ifdef block is the standard way of creating macros which make exporting 
 // from a DLL simpler. All files within this DLL are compiled with the DIRECTXMODPLAY_EXPORTS
@@ -26,8 +27,10 @@ public:
 extern DIRECTXMODPLAY_API int nDirectXMODPlay;
 
 DIRECTXMODPLAY_API int fnDirectXMODPlay(void);
-DIRECTXMODPLAY_API BOOL InitPlayer(HWND, GUID *pguid, LPCSTR modfile);
+DIRECTXMODPLAY_API BOOL InitPlayer(HWND appInstance, LPCSTR modfile);
 DIRECTXMODPLAY_API VOID DeInitPlayer(VOID);
+DIRECTXMODPLAY_API BOOL PlayModule();
+DIRECTXMODPLAY_API BOOL StopModule();
 
 // Internal stuff
 
@@ -42,18 +45,18 @@ const WORD AmigaPeriodTable[12*8] = {
 	570, 567, 563, 559, 555, 551, 547, 543, 538, 535, 532, 528, 524, 520, 516, 513, 
 	508, 505, 502, 498, 494, 491, 487, 484, 480, 477, 474, 470, 467, 463, 460, 457
 };
-
+/*
 #define LINEAR_PERIOD(Note, FineTune) (10 * 12 * 16 * 4 - Note * 16 * 4 - FineTune / 2)
-#define LINEAR_FREQUENCE(Note, FineTune) (8363 * pow(2,((6 * 12 * 16 * 4 - LINEAR_PERIOD(Note, FineTune)) / (12 * 16 * 4))));
+#define LINEAR_FREQUENCY(Note, FineTune) (8363 * pow(2,((6 * 12 * 16 * 4 - LINEAR_PERIOD(Note, FineTune)) / (12 * 16 * 4))));
 
 #define AMIGA_PERIOD(Note, FineTune) { \
 	int integer; \
 	return (AmigaPeriodTable[(Note % 12) * 8 + FineTune / 16] * (1 - modf(FineTune / 16, &integer)) + \
-            AmigaPeriodTable[(Note % 12) * 8 + FineTune / 16 + 1] * (modf(FineTune / 16, &integer))) * 16 / pow(2, (Note / 12))); \
+            AmigaPeriodTable[(Note % 12) * 8 + FineTune / 16 + 1] * (modf(FineTune / 16, &integer)) * 16 / pow(2, (Note / 12))); \
 	}
 
 #define AMIGA_FREQUENCY(Note, FineTune) (8363 * 1712 / AMIGA_PERIOD(Note, FineTune))
-
+*/
 typedef struct 
 {
 	LPSTR Name;
@@ -127,6 +130,7 @@ typedef struct
 	WORD nChannels;
 	WORD Tempo;
 	WORD BPM;
+	BOOL Amiga;
 	LPMODPATTERN Patterns;
 	WORD nPatterns;
 	WORD nInstruments;
@@ -137,3 +141,5 @@ BOOL ReadXM(LPCSTR fileName, LPMODULE module);
 BOOL InitDSound(HWND hwnd, GUID *pguid);
 BOOL InitSampleSoundBuffers(LPDIRECTSOUND lpDirectSound, LPSAMPLE sample);
 VOID DSExit(VOID);
+VOID PlayInstrument(LPINSTRUMENT instrument, BYTE NoteValue, BYTE Volume);
+DWORD WINAPI PlayModuleThread(VOID);
