@@ -1,8 +1,12 @@
+<<<<<<< DirectXMODPlay.h
 #include <windows.h>
 #include <mmsystem.h>
 #include <mmreg.h>
 #include <dsound.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <process.h>
 
 // The following ifdef block is the standard way of creating macros which make exporting 
 // from a DLL simpler. All files within this DLL are compiled with the DIRECTXMODPLAY_EXPORTS
@@ -37,6 +41,9 @@ DIRECTXMODPLAY_API BOOL StopModule();
 #define SAMPLE_FORWARD_LOOP 0
 #define SAMPLE_PINGPONG_LOOP 1
 
+#define SAFE_DELETE(p)  { if(p) { delete (p);     (p)=NULL; } }
+#define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
+
 const WORD AmigaPeriodTable[12*8] = {
 	907, 900, 894, 887, 881, 875, 868, 862, 856, 850, 844, 838, 832, 826, 820, 814, 
 	808, 802, 796, 791, 785, 779, 774, 768, 762, 757, 752, 746, 741, 736, 730, 725, 
@@ -62,17 +69,17 @@ typedef struct
 	LPSTR Name;
 	UINT NameLength;
 	DWORD Length;
-	BYTE FineTune;
+	CHAR FineTune;
 	BYTE Volume;
 	BYTE Pan;
 	BYTE Type;
-	BYTE RelativeNote;
+	CHAR RelativeNote;
 	DWORD LoopStart;
 	DWORD LoopLength;
 	BOOL Loop;
 	UINT LoopType;
-	LPSTR Data;
-	LPDIRECTSOUNDBUFFER SoundBuffer;
+	LPBYTE Data;
+	LPDIRECTSOUNDBUFFER *SoundBuffers;
 } SAMPLE, *PSAMPLE, NEAR *NPSAMPLE, FAR *LPSAMPLE;
 
 typedef struct 
@@ -118,6 +125,12 @@ typedef struct
 	LPNOTE *Notes;
 } MODPATTERN, *PMODPATTERN, NEAR *NPMODPATTERN, FAR *LPMODPATTERN;
 
+typedef struct
+{
+	LPSAMPLE lastSample;
+	BOOL isPlaying;
+} CHANNELINFO, *PCHANNELINFO, NEAR *NPCHANNELINFO, FAR *LPCHANNELINFO;
+
 typedef struct 
 {
 	LPSTR ModuleName;
@@ -135,11 +148,13 @@ typedef struct
 	WORD nPatterns;
 	WORD nInstruments;
 	LPINSTRUMENT Instruments;
+	LPCHANNELINFO ChannelInfo;
 } MODULE, *PMODULE, NEAR *NPMODULE, FAR *LPMODULE;
 
 BOOL ReadXM(LPCSTR fileName, LPMODULE module);
 BOOL InitDSound(HWND hwnd, GUID *pguid);
 BOOL InitSampleSoundBuffers(LPDIRECTSOUND lpDirectSound, LPSAMPLE sample);
 VOID DSExit(VOID);
-VOID PlayInstrument(LPINSTRUMENT instrument, BYTE NoteValue, BYTE Volume);
+BOOL PlayInstrument(LPINSTRUMENT instrument, CHAR NoteValue, BYTE Volume, WORD channel);
 DWORD WINAPI PlayModuleThread(VOID);
+DWORD WINAPI ModulePlayerThread(VOID);

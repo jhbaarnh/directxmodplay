@@ -6,6 +6,10 @@
 #include <fstream.h>
 #include <string.h>
 #include <assert.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <process.h>
+#include <stdio.h>
 
 BOOL APIENTRY DllMain( HANDLE hModule, 
                        DWORD  ul_reason_for_call, 
@@ -52,9 +56,16 @@ LPDIRECTSOUNDNOTIFY         lpdsNotify = NULL;
 //DSBPOSITIONNOTIFY           rgdsbpn[NUMEVENTS];
 //HANDLE                      rghEvent[NUMEVENTS];
 
+//HWND hwndPlayer;
+HANDLE ThreadHandle;
+DWORD ThreadID;
 MODULE module;
+int Ticks;
+UINT TimerID;
+LONG GlobalVolume = 64;
+LONG factor = 4;
 
-DIRECTXMODPLAY_API BOOL ReadXM(LPCSTR fileName, LPMODULE module)
+BOOL ReadXM(LPCSTR fileName, LPMODULE module)
 {
 	ifstream modfile(fileName, ios::in | ios::binary | ios::nocreate, filebuf::openprot);
 	CHAR buffer[50];
@@ -86,6 +97,10 @@ DIRECTXMODPLAY_API BOOL ReadXM(LPCSTR fileName, LPMODULE module)
 	modfile.read((char *)&module->nInstruments, sizeof module->nInstruments);
 
 	modfile.read((char *)&version, sizeof version);
+	if (version & 1 == 1)
+		module->Amiga = FALSE;
+	else
+		module->Amiga = TRUE;
 	modfile.read((char *)&module->Tempo, sizeof module->Tempo);
 	modfile.read((char *)&module->BPM, sizeof module->BPM);
 	module->Order = new BYTE[256];
@@ -235,16 +250,16 @@ DIRECTXMODPLAY_API BOOL ReadXM(LPCSTR fileName, LPMODULE module)
 			{
 				if (module->Instruments[instrument].Samples[sample].Length > 0)
 				{
-					module->Instruments[instrument].Samples[sample].Data = new CHAR[module->Instruments[instrument].Samples[sample].Length];
+					module->Instruments[instrument].Samples[sample].Data = new BYTE[module->Instruments[instrument].Samples[sample].Length];
 					modfile.read(module->Instruments[instrument].Samples[sample].Data, module->Instruments[instrument].Samples[sample].Length);
-					
-					if (module->Instruments[instrument].Samples[sample].Type & 16 == 16)
+
+					if ((module->Instruments[instrument].Samples[sample].Type & 16) > 0)
 					{
+
 						SHORT *curSample = (SHORT *)module->Instruments[instrument].Samples[sample].Data;
 						SHORT *lastSample = (SHORT *)(module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data);
 						SHORT oldSample = 0;
 						SHORT newSample;
-						curSample++;
 						while (curSample < lastSample)
 						{
 							newSample = oldSample + *curSample;
@@ -255,19 +270,69 @@ DIRECTXMODPLAY_API BOOL ReadXM(LPCSTR fileName, LPMODULE module)
 					}
 					else
 					{
-						CHAR *curSample = module->Instruments[instrument].Samples[sample].Data;
-						CHAR *lastSample = module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data;
+/*
+						SHORT *curSample = (SHORT *)module->Instruments[instrument].Samples[sample].Data;
+						SHORT *lastSample = (SHORT *)(module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data);
+						SHORT oldSample = 0;
+						SHORT newSample;
+						*/
+
+						CHAR *curSample = (CHAR *)module->Instruments[instrument].Samples[sample].Data;
+						CHAR *lastSample = (CHAR *)module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data;
 						CHAR oldSample = 0;
 						CHAR newSample;
-						curSample++;
+
 						while (curSample < lastSample)
 						{
-							newSample = oldSample + *curSample;
+							newSample = (signed)oldSample + (signed)*curSample;
 							*curSample = newSample;
 							oldSample = newSample;
 							curSample++;
 						}
 					}
+
+					VOID *newSample;
+					int newLen = module->Instruments[instrument].Samples[sample].Length / factor;
+					if ((module->Instruments[instrument].Samples[sample].Type & 16) > 0)
+					{
+						SHORT *curSample = (SHORT *)module->Instruments[instrument].Samples[sample].Data;
+						SHORT *lastSample = (SHORT *)(module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data);
+						newSample = new SHORT[newLen / 2];
+						SHORT *sample = (SHORT *)newSample;
+
+						while (curSample < lastSample)
+						{
+							*sample = *curSample;
+							sample++;
+							curSample += factor;
+						}		
+
+					}
+					else
+					{
+/*
+						SHORT *curSample = (SHORT *)module->Instruments[instrument].Samples[sample].Data;
+						SHORT *lastSample = (SHORT *)(module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data);
+						newSample = new SHORT[newLen / 2];
+						SHORT *sample = (SHORT *)newSample;
+*/
+						CHAR *curSample = (CHAR *)module->Instruments[instrument].Samples[sample].Data;
+						CHAR *lastSample = (CHAR *)(module->Instruments[instrument].Samples[sample].Data + module->Instruments[instrument].Samples[sample].Length * sizeof *module->Instruments[instrument].Samples[sample].Data);
+						newSample = new CHAR[newLen];
+						CHAR *sample = (CHAR *)newSample;
+
+						while (curSample < lastSample)
+						{
+							*sample = *curSample;
+							sample++;
+							curSample += factor;
+						}		
+
+					}
+
+					delete module->Instruments[instrument].Samples[sample].Data;
+					module->Instruments[instrument].Samples[sample].Data = (BYTE *)newSample;
+					module->Instruments[instrument].Samples[sample].Length = newLen;
 				}
 			}
 		}
@@ -306,16 +371,16 @@ DIRECTXMODPLAY_API VOID DeInitPlayer(VOID)
 		delete module.Patterns[pattern].Notes;
 	}
 
+	delete module.ChannelInfo;
 	delete module.Patterns;
 	delete module.ModuleName;
 	delete module.Order;
 	//delete module.TrackerName;
 }
 
-
-DIRECTXMODPLAY_API BOOL InitPlayer(HWND hwnd, GUID *pguid, LPCSTR modfile)
+DIRECTXMODPLAY_API BOOL InitPlayer(HWND hwndPlayer, LPCSTR modfile)
 {
-	if (!InitDSound(hwnd, pguid))
+	if (!InitDSound(hwndPlayer, NULL))
 		return FALSE;
 
 	if (!ReadXM(modfile, &module))	
@@ -330,6 +395,218 @@ DIRECTXMODPLAY_API BOOL InitPlayer(HWND hwnd, GUID *pguid, LPCSTR modfile)
 		}
 	}
 	
+	module.ChannelInfo = new CHANNELINFO[module.nChannels];
+	for (int channel = 0; channel < module.nChannels; channel++)
+		memset(&module.ChannelInfo[channel], 0, sizeof module.ChannelInfo[channel]);
+
+	return TRUE;
+}
+
+HANDLE mutex;
+
+VOID CALLBACK ModulePlayer(
+  HWND hwnd,     // handle of window for timer messages
+  UINT uMsg,     // WM_TIMER message
+  UINT idEvent,  // timer identifier
+  DWORD dwTime   // current system time
+)
+{
+	//OutputDebugString("Tick1\n");
+	//WaitForSingleObject(mutex, (DWORD)((double)60 / (1000 * module.BPM) + 0.5));
+
+	if (++Ticks >= module.Tempo)
+	{
+		//OutputDebugString("Tick2\n");
+		//DWORD PlayerThreadID;
+		//HANDLE PlayerThreadHandle = CreateThread(NULL, 2048, (LPTHREAD_START_ROUTINE) ModulePlayerThread, NULL, 0, &PlayerThreadID);
+		//SetThreadPriority(PlayerThreadHandle, THREAD_PRIORITY_BELOW_NORMAL);
+		ModulePlayerThread();
+
+		Ticks = 0;
+	}
+
+	//ReleaseMutex(mutex);
+}
+
+WORD curPattern = 0;
+WORD curRow = 0;
+
+UINT channelsPlayed[12] = {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0};
+
+DWORD WINAPI ModulePlayerThread(VOID)
+{
+	NOTE curNote;
+
+	for (int channel = 0; channel < module.nChannels; channel++)
+	{
+		//if (channelsPlayed[channel])
+		//	continue;
+		assert(module.Order[curPattern] < module.nPatterns);
+		curNote = module.Patterns[module.Order[curPattern]].Notes[channel][curRow];
+
+		if (curNote.Instrument > 0 && curNote.NoteValue > 0)
+		{
+			CHAR buffer[50];
+			sprintf(buffer, "Instrument: %u\n", curNote.Instrument - 1);
+			//OutputDebugString(buffer);
+			assert(module.Instruments[curNote.Instrument - 1].nSamples > 0);
+			if (module.ChannelInfo[channel].isPlaying && curNote.NoteValue == 97)
+			{
+				module.ChannelInfo[channel].lastSample->SoundBuffers[channel]->Stop();
+				module.ChannelInfo[channel].lastSample->SoundBuffers[channel]->SetCurrentPosition(0L);
+				module.ChannelInfo[channel].isPlaying = FALSE;
+			}
+			if (curNote.NoteValue < 97)
+			{
+
+				if (!PlayInstrument(&module.Instruments[curNote.Instrument - 1], curNote.NoteValue, curNote.Volume, channel))
+				{
+					OutputDebugString("Could not play instrument!\n");
+					sprintf(buffer, "Channel: %u\n", channel);
+					OutputDebugString(buffer);
+				}
+			}
+		}
+	}
+		
+	curRow++;
+	if (curRow == module.Patterns[module.Order[curPattern]].nRows) 
+	{
+		curRow = 0;
+		curPattern++;
+		if (curPattern == module.nPatterns)
+			StopModule();
+	}
+
+	return 0;
+}
+
+DIRECTXMODPLAY_API BOOL PlayModule(VOID)
+{
+	if FAILED(lpdsbPrimary->Play(0, 0, DSBPLAY_LOOPING))
+		return FALSE;
+
+	mutex = CreateMutex(NULL, FALSE, "ModulePlayer");
+	if (mutex == NULL)
+		return FALSE;
+
+	ThreadHandle = CreateThread(NULL, 1024, (LPTHREAD_START_ROUTINE) PlayModuleThread, NULL, 0, &ThreadID);
+	if (SetThreadPriority(ThreadHandle, THREAD_PRIORITY_TIME_CRITICAL) == 0)
+		return FALSE;
+	if (ThreadHandle == 0)
+		return FALSE;
+
+	return TRUE;
+}
+
+DWORD WINAPI PlayModuleThread(VOID)
+{
+	//module.BPM >>= 1;
+	//module.Tempo <<= 1;
+	Ticks = module.Tempo;
+	TimerID = SetTimer(NULL, 1, (UINT)((double)2500 / module.BPM), (TIMERPROC) ModulePlayer);
+	if (TimerID == 0)
+		return FALSE;
+
+	MSG msg;
+
+    while (GetMessage(&msg, // message structure 
+            NULL,           // handle of window to receive the message 
+            NULL,           // lowest message to examine 
+            NULL))          // highest message to examine 
+    { 
+        TranslateMessage(&msg); // translates virtual-key codes 
+        DispatchMessage(&msg);  // dispatches message to window 
+		WaitMessage();
+    } 
+
+	return TRUE;
+}
+
+DIRECTXMODPLAY_API BOOL StopModule(VOID)
+{
+	if (!KillTimer(NULL, TimerID))
+		return FALSE;
+
+	if (!PostThreadMessage(ThreadID, WM_QUIT, 0, 0))
+		return FALSE;
+
+	if (!CloseHandle(mutex))
+		return FALSE;
+
+	if FAILED(lpdsbPrimary->Stop())
+		return FALSE;
+
+	return TRUE;
+}
+
+inline double LinearPeriod(CHAR Note, CHAR FineTune) 
+{
+	return (10 * 12 * 16 * 4 - (double) Note * 16 * 4 - (double)FineTune / 2);
+}
+
+inline double LinearFrequency(CHAR Note, CHAR FineTune) 
+{
+	return (8363 * pow(2, (6 * 12 * 16 * 4 - LinearPeriod(Note, FineTune)) / (double)(12 * 16 * 4)));
+}
+
+inline double AmigaPeriod(CHAR Note, CHAR FineTune) 
+{ 
+	double integer; 
+	assert((Note % 12) * 8 + FineTune / 16 < 95);
+	return (AmigaPeriodTable[(Note % 12) * 8 + FineTune / 16] * (1 - modf(FineTune / 16, &integer)) + AmigaPeriodTable[(Note % 12) * 8 + FineTune / 16 + 1] * (modf(FineTune / 16, &integer)) * 16 / pow(2, (Note / 12))); 
+}
+
+inline double AmigaFrequency(CHAR Note, CHAR FineTune) 
+{
+	return (8363 * 1712 / AmigaPeriod(Note, FineTune));
+}
+
+BOOL PlayInstrument(LPINSTRUMENT instrument, CHAR NoteValue, BYTE Volume, WORD channel)
+{
+	LPSAMPLE NoteSample = &instrument->Samples[instrument->NoteSamples[NoteValue - 1]];
+	CHAR RealNote = NoteSample->RelativeNote + NoteValue;
+	double Frequency;
+
+	if (module.Amiga)
+		Frequency = AmigaFrequency(RealNote, NoteSample->FineTune) / factor;
+	else
+		Frequency = LinearFrequency(RealNote, NoteSample->FineTune) / factor;
+
+	LONG EnvelopeVolume = 64;
+	LONG EnvelopePan = 32;
+	double TrackerVol = ((double)EnvelopeVolume / 64) * ((double)GlobalVolume / 64) * ((double)NoteSample->Volume / 128); // * ((double)Volume / 64); // * ((double)instrument->VolumeFadeOut / 65536);
+	double TrackerPan = (double)(NoteSample->Pan + (EnvelopePan - 32) * (128 - fabs(NoteSample->Pan - 128)) / 32) / 256; 
+
+	LONG FinalVol = (LONG)(DSBVOLUME_MAX - TrackerVol * fabs(DSBVOLUME_MAX - DSBVOLUME_MIN) + 0.5);
+	LONG FinalPan = (LONG)(TrackerPan * fabs(DSBPAN_LEFT - DSBPAN_RIGHT) + DSBPAN_LEFT + 0.5);
+
+	if FAILED(NoteSample->SoundBuffers[channel]->SetFrequency((DWORD) (Frequency + 0.5)))
+		return FALSE;
+
+	if FAILED(NoteSample->SoundBuffers[channel]->SetVolume(FinalVol))
+		return FALSE;
+
+	if FAILED(NoteSample->SoundBuffers[channel]->SetPan(FinalPan))
+		return FALSE;
+
+	DWORD status;
+	if FAILED(NoteSample->SoundBuffers[channel]->GetStatus(&status))
+		return FALSE;
+
+	if (status & DSBSTATUS_PLAYING)
+	{
+		if FAILED(NoteSample->SoundBuffers[channel]->SetCurrentPosition(0L))
+			return FALSE;
+	}
+	else
+	{
+		if FAILED(NoteSample->SoundBuffers[channel]->Play(0, 0, 0))
+			return FALSE;
+	}
+
+	module.ChannelInfo[channel].lastSample = NoteSample;
+	module.ChannelInfo[channel].isPlaying = TRUE;
 	return TRUE;
 }
 
@@ -357,7 +634,7 @@ BOOL InitDSound(HWND hwnd, GUID *pguid)
     memset(&wfx, 0, sizeof wfx); 
     wfx.wFormatTag = WAVE_FORMAT_PCM; 
     wfx.nChannels = 2; 
-    wfx.nSamplesPerSec = 44100; 
+    wfx.nSamplesPerSec = 44100;
     wfx.wBitsPerSample = 16;     
 	wfx.nBlockAlign = wfx.wBitsPerSample / 8 * wfx.nChannels;
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
@@ -368,21 +645,28 @@ BOOL InitDSound(HWND hwnd, GUID *pguid)
     return TRUE;
 }
 
-
-
 BOOL InitSampleSoundBuffers( 
         LPDIRECTSOUND lpDirectSound, 
 		LPSAMPLE sample) 
 { 
+	sample->SoundBuffers = new LPDIRECTSOUNDBUFFER[module.nChannels];
+
     WAVEFORMATEX pcmwf; 
     DSBUFFERDESC dsbdesc; 
 
     // Set up wave format structure. 
     memset(&pcmwf, 0, sizeof pcmwf); 
     pcmwf.wFormatTag = WAVE_FORMAT_PCM; 
-    pcmwf.nChannels = 2; 
-    pcmwf.nSamplesPerSec = 8000; 
-    pcmwf.wBitsPerSample = 8 + 8 * ((sample->Type & 16) >> 4);
+    pcmwf.nChannels = 1; 
+    pcmwf.nSamplesPerSec = 8363 * factor;
+	pcmwf.wBitsPerSample = 16;
+//    pcmwf.wBitsPerSample = 8 + 8 * ((sample->Type & 16) >> 4);
+	/*
+	if ((sample->Type & 16) > 0)
+		pcmwf.wBitsPerSample = 16;
+	else
+		pcmwf.wBitsPerSample = 8;
+	*/
     pcmwf.nBlockAlign = pcmwf.nChannels * pcmwf.wBitsPerSample / 8; 
     pcmwf.nAvgBytesPerSec = pcmwf.nSamplesPerSec * pcmwf.nBlockAlign; 
 
@@ -391,17 +675,35 @@ BOOL InitSampleSoundBuffers(
     dsbdesc.dwSize = sizeof dsbdesc; 
 
     // Need default controls (pan, volume, frequency). 
-    dsbdesc.dwFlags = DSBCAPS_CTRLPAN | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLFREQUENCY | DSBCAPS_STATIC; 
+    dsbdesc.dwFlags = DSBCAPS_CTRLPAN | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLFREQUENCY | DSBCAPS_STATIC | DSBCAPS_GLOBALFOCUS ; 
 
     dsbdesc.dwBufferBytes = sample->Length; 
     dsbdesc.lpwfxFormat = (LPWAVEFORMATEX)&pcmwf; 
 
     // Create buffer. 
-    if FAILED(lpDirectSound->CreateSoundBuffer(&dsbdesc, &sample->SoundBuffer, NULL))
+    if FAILED(lpDirectSound->CreateSoundBuffer(&dsbdesc, &sample->SoundBuffers[0], NULL))
 	{
-        sample->SoundBuffer = NULL; 
+        delete sample->SoundBuffers; 
         return FALSE; 
     } 
+
+	// Fill buffer
+
+	DWORD BufferBytes;
+	LPVOID Buffer;
+
+	if FAILED(sample->SoundBuffers[0]->Lock(0, 0, &Buffer, &BufferBytes, NULL, NULL, DSBLOCK_ENTIREBUFFER))
+		return FALSE;
+
+	assert(BufferBytes >= sample->Length);
+	memcpy(Buffer, sample->Data, sample->Length);
+
+	if FAILED(sample->SoundBuffers[0]->Unlock(Buffer, sample->Length, NULL, 0))
+		return FALSE;
+
+	for (int channel = 1; channel < module.nChannels; channel++)
+		if FAILED(lpDirectSound->DuplicateSoundBuffer(sample->SoundBuffers[channel - 1], &sample->SoundBuffers[channel]))
+			return FALSE;
 
     return TRUE; 
 }
@@ -413,8 +715,9 @@ VOID DSExit(VOID)
 
 	for (int instrument = 0; instrument < module.nInstruments; instrument++)
 		for (int sample = 0; sample < module.Instruments[instrument].nSamples; sample++)
-			if (module.Instruments[instrument].Samples[sample].SoundBuffer != NULL)
-				module.Instruments[instrument].Samples[sample].SoundBuffer->Release();
+			if (module.Instruments[instrument].Samples[sample].SoundBuffers != NULL)
+				for (int channel = 0; channel < module.nChannels; channel++)
+					SAFE_RELEASE(module.Instruments[instrument].Samples[sample].SoundBuffers[channel]);
 
 	if (lpds)
         lpds->Release(); 
